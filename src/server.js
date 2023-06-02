@@ -19,25 +19,49 @@ app.get("/*", (_, res) => res.redirect("/"));
 
 
 const httpServer = http.createServer(app);
-const wsServer = SocketIO(httpServer)
+const wsServer = SocketIO(httpServer);
+
+function publicRooms() {
+    const {
+        sockets : {
+            adapter : {sids, rooms}
+        }
+    } = wsServer;
+    const publicRooms = [];
+    rooms.forEach((_, key) => {
+        if (sids.get(key) === undefined) {
+            publicRooms.push(key);
+        }
+    });
+    return publicRooms;
+}
+
+function countRoom(roomName){
+   return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
 
 wsServer.on("Connection", (socket) => {
+    wsServer.socketsJoin("announcement");
     socket.on("enter_room", (roomName, done) => {
         socket.join(roomName);
         done();
-        socket.to(roomName).emit("welcome");// 방에 참ㄱ
+        socket.to(roomName).emit("welcome", socket.nickname);
+        wsServer.sockets.emit("room_change", publicRooms());
     });
     socket.onAny((event) => {
-       
+       console.log(wsServer.sockets.adapter);
+
     });
     socket.on("disconnecting",  () => {
-        socket.rooms.forEach(room => socket.to(room).emit("bye"));
+        socket.rooms.forEach(room => socket.to(room).emit("bye", socket.nickname, countRoom(roomName)));
     })
 
     socket.on("new_message", (msg, room, done) => {
-        socket.to(room).emit("new_message", msg);
+        socket.to(room).emit("new_message", `${socket.nickname} : ${msg}`);
         done();
     })
+
+    socket.on("nickname", nickname => socket["nickname"] = nickname)
 })
 // const server = http.createServer(app); // 서버 만들기
 // const wss = new WebSocketServer({ server }); // http서버 위에 webSocket서버를 만듬 -> 이렇게 하면 같은 서버에서 http , ws 둘다 작동시킬수 있다.
