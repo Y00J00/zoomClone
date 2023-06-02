@@ -22,7 +22,22 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer)
 
 wsServer.on("Connection", (socket) => {
-    socket.on("enter_room",  )
+    socket.on("enter_room", (roomName, done) => {
+        socket.join(roomName);
+        done();
+        socket.to(roomName).emit("welcome");// 방에 참ㄱ
+    });
+    socket.onAny((event) => {
+       
+    });
+    socket.on("disconnecting",  () => {
+        socket.rooms.forEach(room => socket.to(room).emit("bye"));
+    })
+
+    socket.on("new_message", (msg, room, done) => {
+        socket.to(room).emit("new_message", msg);
+        done();
+    })
 })
 // const server = http.createServer(app); // 서버 만들기
 // const wss = new WebSocketServer({ server }); // http서버 위에 webSocket서버를 만듬 -> 이렇게 하면 같은 서버에서 http , ws 둘다 작동시킬수 있다.
